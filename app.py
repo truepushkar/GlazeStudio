@@ -486,7 +486,8 @@ def proxy_image():
         headers={"Cache-Control": "public, max-age=3600"},
     )
 
-
+"""
 if __name__ == "__main__":
     print("\n  Glaze Studio →  http://localhost:5000\n")
     app.run(host="0.0.0.0", port=5000, debug=False)
+"""
