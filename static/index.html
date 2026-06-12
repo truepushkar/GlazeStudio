@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glaze — Screenshot Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ Theme tokens ============ */
+:root{
+  --accent:#ff4d2e;
+  --font-ui:'Instrument Sans',system-ui,sans-serif;
+  --font-display:'Bricolage Grotesque',serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+[data-theme="light"]{
+  --app-bg:linear-gradient(140deg,#eef0f7 0%,#f6f1ea 55%,#f0ece6 100%);
+  --blob1:rgba(255,124,80,.34); --blob2:rgba(110,140,255,.30); --blob3:rgba(64,200,180,.24);
+  --glass:rgba(255,255,255,.55); --glass-strong:rgba(255,255,255,.72);
+  --glass-line:rgba(255,255,255,.65); --glass-edge:rgba(23,21,18,.08);
+  --ink:#1b1916; --ink-soft:#56524a; --ink-faint:#94908a;
+  --field:rgba(255,255,255,.65); --field-line:rgba(23,21,18,.12);
+  --seg:rgba(23,21,18,.06); --seg-active:rgba(255,255,255,.95);
+  --stage:rgba(238,236,232,.4); --stage-dot:rgba(23,21,18,.14);
+  --dz-line:rgba(23,21,18,.2); --dz-ink:rgba(23,21,18,.8); --dz-sub:rgba(23,21,18,.45); --dz-chip:rgba(23,21,18,.06);
+  --track:rgba(23,21,18,.14); --shadow-panel:0 8px 32px rgba(23,21,18,.08);
+}
+[data-theme="dark"]{
+  --app-bg:linear-gradient(140deg,#0c0e14 0%,#12131c 55%,#16141c 100%);
+  --blob1:rgba(255,90,46,.20); --blob2:rgba(86,110,255,.18); --blob3:rgba(40,180,170,.13);
+  --glass:rgba(24,26,35,.52); --glass-strong:rgba(28,30,40,.68);
+  --glass-line:rgba(255,255,255,.09); --glass-edge:rgba(255,255,255,.07);
+  --ink:#f2f0ec; --ink-soft:#b4b0a8; --ink-faint:#7c7870;
+  --field:rgba(255,255,255,.06); --field-line:rgba(255,255,255,.14);
+  --seg:rgba(255,255,255,.07); --seg-active:rgba(255,255,255,.16);
+  --stage:rgba(10,11,16,.45); --stage-dot:rgba(255,255,255,.08);
+  --dz-line:rgba(255,255,255,.2); --dz-ink:rgba(255,255,255,.85); --dz-sub:rgba(255,255,255,.42); --dz-chip:rgba(255,255,255,.08);
+  --track:rgba(255,255,255,.16); --shadow-panel:0 8px 32px rgba(0,0,0,.35);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--font-ui);color:var(--ink);overflow:hidden;
+  background:var(--app-bg);
+  -webkit-font-smoothing:antialiased;
+  transition:background .4s ease,color .3s ease;
+}
+/* ambient blobs behind the glass */
+body::before,body::after{
+  content:'';position:fixed;border-radius:50%;pointer-events:none;z-index:0;
+  filter:blur(90px);
+}
+body::before{width:55vw;height:55vw;top:-18vw;left:-12vw;background:var(--blob1)}
+body::after{width:48vw;height:48vw;bottom:-16vw;right:-8vw;background:var(--blob2)}
+.blob3{position:fixed;width:36vw;height:36vw;top:38%;left:42%;border-radius:50%;background:var(--blob3);filter:blur(100px);pointer-events:none;z-index:0}
+
+/* ============ Header ============ */
+header{
+  height:58px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;position:relative;z-index:6;
+  background:var(--glass);
+  backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5);
+  border-bottom:1px solid var(--glass-edge);
+}
+.wordmark{display:flex;align-items:baseline;gap:10px}
+.wordmark h1{font-family:var(--font-display);font-weight:700;font-size:21px;letter-spacing:-.02em}
+.wordmark h1 .dot{color:var(--accent)}
+.wordmark span{font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.header-actions{display:flex;gap:8px;align-items:center}
+button{font-family:var(--font-ui);font-size:13px;font-weight:600;border:none;cursor:pointer;border-radius:10px;transition:all .15s ease;color:var(--ink)}
+.btn-ghost{background:var(--field);color:var(--ink-soft);padding:8px 12px;border:1px solid var(--field-line)}
+.btn-ghost:hover{color:var(--ink);border-color:var(--ink-faint)}
+.btn-primary{background:var(--accent);color:#fff;padding:8px 16px;display:flex;align-items:center;gap:7px;box-shadow:0 4px 16px rgba(255,77,46,.3)}
+.btn-primary:hover{background:#e83e20}
+.btn-primary svg{width:13px;height:13px}
+.theme-btn{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--field);border:1px solid var(--field-line);padding:0;
+}
+.theme-btn:hover{border-color:var(--ink-faint)}
+.theme-btn svg{width:16px;height:16px;stroke:var(--ink-soft);fill:none;stroke-width:2;stroke-linecap:round}
+[data-theme="light"] .ico-sun{display:none}
+[data-theme="dark"] .ico-moon{display:none}
+
+/* ============ Layout ============ */
+.app{display:flex;height:calc(100% - 58px);position:relative;z-index:1}
+
+.stage{
+  flex:1;min-width:0;position:relative;
+  background:var(--stage);
+  background-image:radial-gradient(var(--stage-dot) 1px,transparent 1px);
+  background-size:22px 22px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:48px;
+}
+.stage-inner{max-width:100%;max-height:100%;display:flex;align-items:center;justify-content:center}
+#preview{
+  max-width:100%;max-height:calc(100vh - 58px - 96px);
+  border-radius:8px;display:none;
+  box-shadow:0 24px 80px rgba(0,0,0,.45);
+}
+#preview.transparent-bg{
+  background:linear-gradient(45deg,rgba(127,127,127,.25) 25%,transparent 25%,transparent 75%,rgba(127,127,127,.25) 75%),linear-gradient(45deg,rgba(127,127,127,.25) 25%,transparent 25%,transparent 75%,rgba(127,127,127,.25) 75%);
+  background-size:18px 18px;background-position:0 0,9px 9px;
+}
+.dropzone{
+  width:min(560px,86%);border:1.5px dashed var(--dz-line);border-radius:20px;
+  padding:52px 40px;text-align:center;color:var(--dz-ink);cursor:pointer;
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:var(--shadow-panel);transition:all .2s ease;
+}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);box-shadow:0 8px 40px rgba(255,77,46,.15)}
+.dropzone .dz-icon{width:52px;height:52px;margin:0 auto 18px;border-radius:14px;background:var(--dz-chip);display:flex;align-items:center;justify-content:center}
+.dropzone .dz-icon svg{width:24px;height:24px;stroke:var(--dz-ink)}
+.dropzone h2{font-family:var(--font-display);font-weight:500;font-size:22px;letter-spacing:-.01em;margin-bottom:8px}
+.dropzone p{font-size:13.5px;color:var(--dz-sub);line-height:1.65}
+.dropzone kbd{font-family:var(--font-mono);font-size:11px;background:var(--dz-chip);border-radius:4px;padding:2px 6px}
+.dz-sample{margin-top:22px;background:transparent;color:var(--accent);font-size:13px;font-weight:600;padding:9px 16px;border:1px solid rgba(255,77,46,.45);border-radius:10px}
+.dz-sample:hover{background:rgba(255,77,46,.1)}
+.stage-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-faint);white-space:nowrap}
+
+/* ============ Sidebar ============ */
+aside{
+  width:320px;flex-shrink:0;overflow-y:auto;padding:14px 14px 28px;
+  background:var(--glass);
+  backdrop-filter:blur(28px) saturate(1.5);-webkit-backdrop-filter:blur(28px) saturate(1.5);
+  border-left:1px solid var(--glass-edge);
+}
+aside::-webkit-scrollbar{width:8px}
+aside::-webkit-scrollbar-thumb{background:var(--track);border-radius:4px}
+.panel{
+  background:var(--glass-strong);border:1px solid var(--glass-line);
+  border-radius:16px;padding:16px;margin-bottom:12px;
+  box-shadow:var(--shadow-panel);
+}
+.panel-label{
+  font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:13px;
+}
+
+/* import */
+.import-row{display:flex;gap:8px}
+.import-row input{
+  flex:1;min-width:0;font-family:var(--font-ui);font-size:13px;padding:9px 12px;
+  border:1px solid var(--field-line);border-radius:10px;background:var(--field);
+  color:var(--ink);outline:none;transition:border-color .15s;
+}
+.import-row input:focus{border-color:var(--accent)}
+.import-row input::placeholder{color:var(--ink-faint)}
+.btn-fetch{background:var(--accent);color:#fff;padding:9px 14px;flex-shrink:0;position:relative}
+.btn-fetch:hover{background:#e83e20}
+.btn-fetch.loading{color:transparent;pointer-events:none}
+.btn-fetch.loading::after{content:'';position:absolute;inset:0;margin:auto;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.import-platforms{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pf{height:22px;padding:0 8px;border-radius:6px;display:flex;align-items:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:.02em}
+.pf-x{background:#000}.pf-rd{background:#ff4500}.pf-ig{background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)}
+.pf-bs{background:#0085ff}.pf-yt{background:#ff0000}.pf-tt{background:#161823}
+.pf-gh{background:#24292f}.pf-md{background:#6364ff}.pf-th{background:#444}
+
+/* swatches */
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.swatch{aspect-ratio:1;border-radius:9px;cursor:pointer;border:2px solid transparent;transition:transform .12s ease;padding:0}
+.swatch:hover{transform:scale(1.08)}
+.swatch.active{border-color:var(--ink);box-shadow:0 0 0 2px var(--glass-strong) inset}
+.swatch.transparent{background:linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%),linear-gradient(45deg,#bbb 25%,transparent 25%,transparent 75%,#bbb 75%);background-color:#fff;background-size:10px 10px;background-position:0 0,5px 5px}
+
+.seg-caption{font-size:12px;color:var(--ink-faint);margin:14px 0 7px;font-weight:500}
+.custom-row{display:flex;gap:8px;align-items:center}
+input[type=color]{
+  -webkit-appearance:none;appearance:none;width:40px;height:32px;border:1px solid var(--field-line);
+  border-radius:8px;background:var(--field);cursor:pointer;padding:3px;
+}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
+input[type=color]::-moz-color-swatch{border:none;border-radius:5px}
+.btn-small{background:var(--field);border:1px solid var(--field-line);color:var(--ink-soft);padding:7px 12px;font-size:12px;border-radius:8px;flex:1}
+.btn-small:hover{color:var(--ink);border-color:var(--ink-faint)}
+.btn-small.active{border-color:var(--accent);color:var(--accent)}
+
+/* sliders */
+.slider-row{margin-bottom:14px}
+.slider-row:last-child{margin-bottom:0}
+.slider-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.slider-head label{font-size:13px;font-weight:500;color:var(--ink-soft)}
+.slider-head output{font-family:var(--font-mono);font-size:11px;color:var(--ink)}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:var(--track);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--glass-strong);border:2.5px solid var(--ink);transition:border-color .15s}
+input[type=range]::-webkit-slider-thumb:hover{border-color:var(--accent)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--glass-strong);border:2.5px solid var(--ink)}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+/* segments */
+.segments{display:flex;background:var(--seg);border-radius:10px;padding:3px;gap:2px}
+.segments button{flex:1;padding:7px 4px;font-size:12px;font-weight:500;background:transparent;color:var(--ink-soft);border-radius:7px}
+.segments button.active{background:var(--seg-active);color:var(--ink);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.segments button:hover:not(.active){color:var(--ink)}
+.segments + .segments{margin-top:8px}
+
+/* toggles */
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0}
+.toggle-row label{font-size:13px;font-weight:500;color:var(--ink-soft)}
+.toggle{width:38px;height:22px;border-radius:11px;background:var(--track);position:relative;padding:0;flex-shrink:0}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s ease}
+.toggle.on{background:var(--accent)}
+.toggle.on::after{transform:translateX(16px)}
+
+.text-field{
+  width:100%;font-family:var(--font-ui);font-size:13px;padding:8px 11px;margin-top:8px;
+  border:1px solid var(--field-line);border-radius:9px;background:var(--field);
+  color:var(--ink);outline:none;
+}
+.text-field:focus{border-color:var(--accent)}
+.text-field::placeholder{color:var(--ink-faint)}
+
+.export-extra{display:flex;gap:8px;margin-top:10px}
+.export-extra .btn-small{text-align:center}
+.scale-note{margin-top:10px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-faint);text-align:center}
+.hint{font-size:11.5px;color:var(--ink-faint);line-height:1.5;margin-top:9px}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);
+  background:var(--glass-strong);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  color:var(--ink);border:1px solid var(--glass-line);
+  font-size:13px;font-weight:500;padding:10px 18px;border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.3);transition:transform .3s cubic-bezier(.2,.9,.3,1.2);
+  z-index:99;pointer-events:none;max-width:min(480px,90vw);text-align:center;
+}
+.toast.show{transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:860px){
+  body{overflow:auto}
+  .app{flex-direction:column;height:auto}
+  .stage{min-height:52vh;padding:24px}
+  #preview{max-height:46vh}
+  aside{width:100%;border-left:none;border-top:1px solid var(--glass-edge)}
+  .stage-hint{display:none}
+}
+</style>
+</head>
+<body>
+<div class="blob3"></div>
+
+<header>
+  <div class="wordmark">
+    <h1>Glaze<span class="dot">.</span></h1>
+    <span>Screenshot studio</span>
+  </div>
+  <div class="header-actions">
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle light or dark mode">
+      <svg class="ico-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4l1.4-1.4"/></svg>
+      <svg class="ico-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button class="btn-ghost" id="btnNew">Replace image</button>
+    <button class="btn-primary" id="btnCopy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      Copy
+    </button>
+    <button class="btn-primary" id="btnExport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      Export
+    </button>
+  </div>
+</header>
+
+<div class="app">
+  <main class="stage" id="stage">
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload a screenshot">
+      <div class="dz-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M3 16l5-4 4 3 3.5-2.5L21 16"/></svg>
+      </div>
+      <h2>Drop a screenshot here</h2>
+      <p>Click to browse, drag a file in, or paste with <kbd>Ctrl</kbd> <kbd>V</kbd>.<br>Or import a post from 9 platforms in the sidebar →</p>
+      <button class="dz-sample" id="btnSample">Try with a sample</button>
+    </div>
+    <div class="stage-inner"><canvas id="preview"></canvas></div>
+    <div class="stage-hint" id="stageHint"></div>
+    <input type="file" id="fileInput" accept="image/*" hidden>
+    <input type="file" id="bgFileInput" accept="image/*" hidden>
+  </main>
+
+  <aside>
+    <div class="panel">
+      <div class="panel-label">Import a post</div>
+      <div class="import-row">
+        <input type="url" id="postUrl" placeholder="Paste a post URL…" spellcheck="false">
+        <button class="btn-fetch" id="btnFetch">Fetch</button>
+      </div>
+      <div class="import-platforms">
+        <div class="pf pf-x">𝕏</div><div class="pf pf-bs">BLUESKY</div><div class="pf pf-rd">REDDIT</div>
+        <div class="pf pf-ig">INSTAGRAM</div><div class="pf pf-th">THREADS</div><div class="pf pf-md">MASTODON</div>
+        <div class="pf pf-yt">YOUTUBE</div><div class="pf pf-tt">TIKTOK</div><div class="pf pf-gh">GITHUB</div>
+      </div>
+      <div class="seg-caption">Card theme</div>
+      <div class="segments" id="cardThemeSeg">
+        <button data-v="light" class="active">Light</button>
+        <button data-v="dark">Dark</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Background</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="seg-caption">Wallpapers</div>
+      <div class="swatches" id="wallpaperSwatches" style="display:none"></div>
+      <div class="seg-caption">Custom gradient</div>
+      <div class="custom-row">
+        <input type="color" id="cc1" value="#5b7bff" aria-label="Gradient color 1">
+        <input type="color" id="cc2" value="#ff6a88" aria-label="Gradient color 2">
+        <div class="segments" style="flex:1" id="customTypeSeg">
+          <button data-v="lin" class="active">Linear</button>
+          <button data-v="rad">Radial</button>
+        </div>
+      </div>
+      <div class="slider-row" style="margin-top:12px">
+        <div class="slider-head"><label for="rAngle">Angle</label><output id="oAngle">135°</output></div>
+        <input type="range" id="rAngle" min="0" max="360" value="135">
+      </div>
+      <div class="custom-row" style="margin-top:12px">
+        <button class="btn-small" id="btnUseCustom">Use custom</button>
+        <button class="btn-small" id="btnBgUpload">Upload image…</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Animation</div>
+      <div class="toggle-row">
+        <label>Animate background</label>
+        <button class="toggle" id="animToggle" role="switch" aria-checked="false" aria-label="Animate background"></button>
+      </div>
+      <div class="segments" id="animSeg" style="margin-top:8px">
+        <button data-v="drift" class="active">Drift</button>
+        <button data-v="hue">Hue shift</button>
+        <button data-v="breathe">Breathe</button>
+      </div>
+      <div class="hint">Animated canvases export as a 4-second WebM loop from the Export panel.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Geometry</div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rPad">Padding</label><output id="oPad">64</output></div>
+        <input type="range" id="rPad" min="0" max="220" value="64">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rScale">Size</label><output id="oScale">100%</output></div>
+        <input type="range" id="rScale" min="40" max="100" value="100">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rRad">Corner radius</label><output id="oRad">16</output></div>
+        <input type="range" id="rRad" min="0" max="60" value="16">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rRot">Rotation</label><output id="oRot">0°</output></div>
+        <input type="range" id="rRot" min="-15" max="15" value="0">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rSh">Shadow</label><output id="oSh">45</output></div>
+        <input type="range" id="rSh" min="0" max="100" value="45">
+      </div>
+      <div class="slider-row">
+        <div class="slider-head"><label for="rBorder">Border</label><output id="oBorder">0</output></div>
+        <input type="range" id="rBorder" min="0" max="16" value="0">
+      </div>
+      <div class="custom-row">
+        <input type="color" id="borderColor" value="#ffffff" aria-label="Border color">
+        <span style="font-size:12px;color:var(--ink-faint)">Border color</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Window frame</div>
+      <div class="segments" id="frameSeg">
+        <button data-v="none" class="active">None</button>
+        <button data-v="mac-light">macOS</button>
+        <button data-v="mac-dark">macOS dark</button>
+      </div>
+      <div class="segments" id="frameSeg2">
+        <button data-v="win-light">Windows</button>
+        <button data-v="win-dark">Windows dark</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Canvas ratio</div>
+      <div class="segments" id="aspectSeg">
+        <button data-v="auto" class="active">Auto</button>
+        <button data-v="1">1:1</button>
+        <button data-v="1.7778">16:9</button>
+        <button data-v="1.3333">4:3</button>
+        <button data-v="1.91">Social</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Finishes</div>
+      <div class="toggle-row"><label>Film grain</label><button class="toggle" id="grainToggle" role="switch" aria-checked="false" aria-label="Film grain"></button></div>
+      <div class="toggle-row"><label>Vignette</label><button class="toggle" id="vignetteToggle" role="switch" aria-checked="false" aria-label="Vignette"></button></div>
+      <div class="toggle-row"><label>Glass glare</label><button class="toggle" id="glareToggle" role="switch" aria-checked="false" aria-label="Glass glare"></button></div>
+      <input type="text" class="text-field" id="watermark" placeholder="Watermark text (optional)" maxlength="48">
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">Export</div>
+      <div class="segments" id="scaleSeg">
+        <button data-v="1">1×</button>
+        <button data-v="2" class="active">2×</button>
+        <button data-v="3">3×</button>
+      </div>
+      <div class="export-extra">
+        <button class="btn-small" id="btnExportPng">PNG</button>
+        <button class="btn-small" id="btnExportWebm">WebM · 4s</button>
+      </div>
+      <div class="scale-note" id="scaleNote">—</div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ===================== State ===================== */
+const state = {
+  img:null, post:null,
+  pad:64, geomScale:100, rad:16, rot:0, shadow:45, border:0, borderColor:'#ffffff',
+  bgMode:'preset', bg:1,
+  custom:{type:'lin', a:135, c1:'#5b7bff', c2:'#ff6a88'},
+  bgImg:null,
+  frame:'none', aspect:'auto',
+  grain:false, vignette:false, glare:false, watermark:'',
+  anim:false, animStyle:'drift',
+  scale:2, cardTheme:'light',
+};
+
+const GRADIENTS = [
+  {type:'none'},
+  {type:'lin', a:225, stops:[[0,'#ff9a8b'],[.55,'#ff6a88'],[1,'#ff99ac']]},
+  {type:'lin', a:135, stops:[[0,'#667eea'],[1,'#764ba2']]},
+  {type:'lin', a:160, stops:[[0,'#0ea5e9'],[1,'#2dd4bf']]},
+  {type:'lin', a:210, stops:[[0,'#f97316'],[.5,'#db2777'],[1,'#7c3aed']]},
+  {type:'lin', a:135, stops:[[0,'#fde68a'],[1,'#fb7185']]},
+  {type:'lin', a:135, stops:[[0,'#a7f3d0'],[1,'#0d9488']]},
+  {type:'lin', a:120, stops:[[0,'#cdeb45'],[1,'#1db5a6']]},
+  {type:'lin', a:180, stops:[[0,'#1e293b'],[1,'#0b1020']]},
+  {type:'rad', stops:[[0,'#3b4a8f'],[1,'#10142b']]},
+  {type:'lin', a:135, stops:[[0,'#f6f3ee'],[1,'#dcd4c6']]},
+  {type:'sol', c:'#15171c'},
+];
+
+/* ===================== Elements ===================== */
+const $ = id => document.getElementById(id);
+const canvas = $('preview'), ctx = canvas.getContext('2d');
+const dropzone = $('dropzone'), fileInput = $('fileInput');
+const stage = $('stage'), toast = $('toast');
+
+/* ===================== App theme ===================== */
+$('themeBtn').onclick = ()=>{
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = cur==='dark' ? 'light' : 'dark';
+};
+
+/* ===================== Swatches ===================== */
+const swWrap = $('swatches');
+const wallpaperWrap = $('wallpaperSwatches');
+
+GRADIENTS.forEach((g,i)=>{
+  const el = document.createElement('button');
+  el.className = 'swatch' + (i===state.bg?' active':'') + (g.type==='none'?' transparent':'');
+  el.setAttribute('aria-label', g.type==='none' ? 'Transparent background' : 'Background preset '+i);
+  if(g.type==='lin') el.style.background = `linear-gradient(${g.a}deg, ${g.stops.map(s=>s[1]+' '+(s[0]*100)+'%').join(',')})`;
+  if(g.type==='rad') el.style.background = `radial-gradient(circle at 35% 30%, ${g.stops.map(s=>s[1]+' '+(s[0]*100)+'%').join(',')})`;
+  if(g.type==='sol') el.style.background = g.c;
+  el.onclick = ()=>{
+    state.bgMode='preset'; state.bg=i;
+    refreshBgActive(el); render();
+  };
+  swWrap.appendChild(el);
+});
+
+async function loadWallpapers(){
+  try{
+    const res = await fetch('/api/wallpapers');
+    const wallpapers = await res.json();
+    if(wallpapers.length > 0){
+      wallpaperWrap.style.display = 'grid';
+      wallpapers.forEach(w => {
+        const el = document.createElement('button');
+        el.className = 'swatch';
+        el.setAttribute('aria-label', 'Wallpaper: '+w.id);
+        el.style.backgroundImage = `url('${w.url}')`;
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+        el.onclick = ()=>{
+          const img = new Image();
+          img.onload = ()=>{
+            state.bgImg = img;
+            state.bgMode = 'image';
+            refreshBgActive(el);
+            render();
+          };
+          img.onerror = ()=> note('Could not load wallpaper');
+          img.src = w.url;
+        };
+        wallpaperWrap.appendChild(el);
+      });
+    }
+  }catch(e){
+    // silently fail if wallpapers endpoint is unavailable
+  }
+}
+loadWallpapers();
+
+function refreshBgActive(activeEl){
+  swWrap.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  wallpaperWrap.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  $('btnUseCustom').classList.remove('active');
+  $('btnBgUpload').classList.remove('active');
+  if(activeEl) activeEl.classList.add('active');
+}
+
+/* custom gradient maker */
+['cc1','cc2'].forEach(id=> $(id).addEventListener('input', ()=>{
+  state.custom.c1=$('cc1').value; state.custom.c2=$('cc2').value;
+  if(state.bgMode==='custom') render();
+}));
+$('rAngle').addEventListener('input', ()=>{
+  state.custom.a=+$('rAngle').value;
+  $('oAngle').textContent=state.custom.a+'°';
+  if(state.bgMode==='custom') render();
+});
+$('customTypeSeg').querySelectorAll('button').forEach(b=> b.onclick=()=>{
+  $('customTypeSeg').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  state.custom.type=b.dataset.v;
+  if(state.bgMode==='custom') render();
+});
+$('btnUseCustom').onclick = ()=>{
+  state.bgMode='custom';
+  refreshBgActive(null);
+  $('btnUseCustom').classList.add('active');
+  render();
+};
+/* uploaded background image */
+$('btnBgUpload').onclick = ()=> $('bgFileInput').click();
+$('bgFileInput').onchange = ()=>{
+  const f = $('bgFileInput').files[0];
+  if(!f || !f.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  img.onload = ()=>{
+    URL.revokeObjectURL(url);
+    state.bgImg = img; state.bgMode='image';
+    refreshBgActive(null);
+    $('btnBgUpload').classList.add('active');
+    render();
+  };
+  img.src = url;
+};
+
+/* ===================== Sliders & segments ===================== */
+function bindSlider(rid, oid, key, suffix=''){
+  const r=$(rid), o=$(oid);
+  r.addEventListener('input', ()=>{ state[key]=+r.value; o.textContent=r.value+suffix; render(); });
+}
+bindSlider('rPad','oPad','pad');
+bindSlider('rScale','oScale','geomScale','%');
+bindSlider('rRad','oRad','rad');
+bindSlider('rRot','oRot','rot','°');
+bindSlider('rSh','oSh','shadow');
+bindSlider('rBorder','oBorder','border');
+$('borderColor').addEventListener('input', ()=>{ state.borderColor=$('borderColor').value; render(); });
+
+function bindSeg(id, key, cast, after){
+  $(id).querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      $(id).querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      state[key] = cast ? cast(b.dataset.v) : b.dataset.v;
+      if(after) after(); else render();
+    };
+  });
+}
+/* frame: two linked segmented rows */
+function frameClick(row, other){
+  $(row).querySelectorAll('button').forEach(b=> b.onclick=()=>{
+    $(row).querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+    $(other).querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    state.frame=b.dataset.v;
+    render();
+  });
+}
+frameClick('frameSeg','frameSeg2');
+frameClick('frameSeg2','frameSeg');
+
+bindSeg('aspectSeg','aspect', v=> v==='auto'?'auto':+v);
+bindSeg('scaleSeg','scale', v=>+v, ()=>{ render(); });
+bindSeg('cardThemeSeg','cardTheme', null, ()=>{ if(state.post) buildCard(state.post); });
+bindSeg('animSeg','animStyle', null, ()=>{ if(state.anim) {} else render(); });
+
+function bindToggle(id, key, after){
+  const b=$(id);
+  b.onclick=()=>{
+    state[key]=!state[key];
+    b.classList.toggle('on', state[key]);
+    b.setAttribute('aria-checked', state[key]);
+    if(after) after(); else render();
+  };
+}
+bindToggle('grainToggle','grain');
+bindToggle('vignetteToggle','vignette');
+bindToggle('glareToggle','glare');
+bindToggle('animToggle','anim', ()=> state.anim ? startAnim() : stopAnim());
+$('watermark').addEventListener('input', ()=>{ state.watermark=$('watermark').value; render(); });
+
+/* ===================== Image loading ===================== */
+function setImage(img){ state.img = img; showCanvas(); render(); }
+function loadFile(file){
+  if(!file || !file.type.startsWith('image/')) return;
+  state.post = null;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{ URL.revokeObjectURL(url); setImage(img); };
+  img.src = url;
+}
+dropzone.onclick = ()=> fileInput.click();
+dropzone.onkeydown = e=>{ if(e.key==='Enter'||e.key===' ') fileInput.click(); };
+$('btnNew').onclick = ()=> fileInput.click();
+fileInput.onchange = ()=> loadFile(fileInput.files[0]);
+
+['dragover','dragenter'].forEach(ev=> stage.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev=> stage.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.remove('dragover'); }));
+stage.addEventListener('drop', e=> loadFile(e.dataTransfer.files[0]));
+window.addEventListener('paste', e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));
+  if(item) loadFile(item.getAsFile());
+});
+function showCanvas(){ dropzone.style.display='none'; canvas.style.display='block'; }
+
+/* ===================== URL import ===================== */
+const fetchBtn = $('btnFetch'), urlInput = $('postUrl');
+fetchBtn.onclick = importUrl;
+urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter') importUrl(); });
+
+async function importUrl(){
+  const url = urlInput.value.trim();
+  if(!url) return note('Paste a post URL first');
+  fetchBtn.classList.add('loading');
+  try{
+    const res = await fetch('/api/fetch?url='+encodeURIComponent(url));
+    const data = await res.json();
+    if(!res.ok || data.error) throw new Error(data.error || 'Fetch failed');
+    state.post = data;
+    await buildCard(data);
+    note('Post imported — style away');
+  }catch(err){
+    if(location.protocol==='file:') note('URL import needs the Flask server — run python app.py');
+    else note(err.message || 'Could not fetch that post');
+  }finally{ fetchBtn.classList.remove('loading'); }
+}
+
+async function buildCard(d){
+  const card =
+    d.kind==='reddit'    ? await drawRedditCard(d) :
+    d.kind==='instagram' ? await drawInstaCard(d)  :
+    d.kind==='video'     ? await drawVideoCard(d)  :
+    d.kind==='repo'      ? await drawRepoCard(d)   :
+                           await drawPostCard(d);
+  const img = new Image();
+  img.onload = ()=> setImage(img);
+  img.src = card.toDataURL('image/png');
+}
+
+/* ===================== Card helpers ===================== */
+const THEMES = {
+  light:{bg:'#ffffff', ink:'#0f1419', sub:'#536471', line:'#eff3f4', chip:'#f1f3f5'},
+  dark: {bg:'#15202b', ink:'#f7f9f9', sub:'#8b98a5', line:'#2f3b47', chip:'#1e2a36'},
+};
+const PLATFORM = {
+  x:        {label:'𝕏',        color:null,      heart:'#f91880'},
+  bluesky:  {label:'Bluesky',  color:'#0085ff', heart:'#ec4899'},
+  mastodon: {label:'Mastodon', color:'#6364ff', heart:'#ca8f04'},
+  threads:  {label:'Threads',  color:null,      heart:'#fe2c55'},
+};
+const LANG_COLORS = {JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',Rust:'#dea584',Go:'#00ADD8',Java:'#b07219','C++':'#f34b7d',C:'#555555','C#':'#178600',Ruby:'#701516',PHP:'#4F5D95',Swift:'#F05138',Kotlin:'#A97BFF',HTML:'#e34c26',CSS:'#563d7c',Shell:'#89e051'};
+
+const fmtN = n => n>=1e6 ? (n/1e6).toFixed(1).replace(/\.0$/,'')+'M'
+              : n>=1e3 ? (n/1e3).toFixed(1).replace(/\.0$/,'')+'K' : String(n||0);
+
+function loadProxied(u, fallback){
+  return new Promise(res=>{
+    if(!u) return res(null);
+    const i = new Image();
+    i.onload = ()=>res(i);
+    i.onerror = ()=> fallback ? loadProxied(fallback).then(res) : res(null);
+    i.src = '/api/img?u='+encodeURIComponent(u);
+  });
+}
+function wrapText(c, text, maxW){
+  const out = [];
+  for(const para of String(text||'').split('\n')){
+    if(!para.trim()){ out.push(''); continue; }
+    let line='';
+    for(const w of para.split(/\s+/)){
+      const t = line ? line+' '+w : w;
+      if(c.measureText(t).width > maxW && line){ out.push(line); line=w; }
+      else line=t;
+    }
+    if(line) out.push(line);
+  }
+  while(out.length && out[out.length-1]==='') out.pop();
+  return out;
+}
+function rr(c,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  c.beginPath();
+  c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);     c.arcTo(x,y,x+w,y,r);
+  c.closePath();
+}
+function circleImg(c, img, x, y, d, fallback, label){
+  c.save();
+  c.beginPath(); c.arc(x+d/2, y+d/2, d/2, 0, 7); c.clip();
+  if(img) c.drawImage(img, x, y, d, d);
+  else{
+    c.fillStyle = fallback; c.fillRect(x,y,d,d);
+    c.fillStyle = '#fff';
+    c.font = `700 ${d*0.42}px Instrument Sans, sans-serif`;
+    c.textAlign='center'; c.textBaseline='middle';
+    c.fillText((label||'?')[0].toUpperCase(), x+d/2, y+d/2+d*0.03);
+    c.textAlign='left'; c.textBaseline='alphabetic';
+  }
+  c.restore();
+}
+function scaledMedia(img, maxW, maxH){
+  const w = maxW;
+  let h = w * img.naturalHeight / img.naturalWidth;
+  let crop = false;
+  if(h > maxH){ h = maxH; crop = true; }
+  return {w, h, crop};
+}
+function drawMedia(c, img, x, y, w, h, crop, r){
+  c.save();
+  rr(c,x,y,w,h,r); c.clip();
+  if(crop){
+    const srcH = img.naturalWidth * h / w;
+    c.drawImage(img, 0, (img.naturalHeight-srcH)/2, img.naturalWidth, srcH, x, y, w, h);
+  } else c.drawImage(img, x, y, w, h);
+  c.restore();
+}
+function icoHeart(c,x,y,s,fill){
+  c.beginPath();
+  c.moveTo(x+s/2, y+s*0.86);
+  c.bezierCurveTo(x-s*0.16, y+s*0.36, x+s*0.10, y-s*0.14, x+s/2, y+s*0.24);
+  c.bezierCurveTo(x+s*0.90, y-s*0.14, x+s*1.16, y+s*0.36, x+s/2, y+s*0.86);
+  c.closePath();
+  fill ? c.fill() : c.stroke();
+}
+function icoBubble(c,x,y,s){
+  rr(c, x, y+s*0.06, s, s*0.74, s*0.34);
+  c.moveTo(x+s*0.26, y+s*0.78);
+  c.lineTo(x+s*0.22, y+s*0.98);
+  c.lineTo(x+s*0.46, y+s*0.80);
+  c.stroke();
+}
+function icoRepost(c,x,y,s){
+  c.beginPath();
+  c.moveTo(x+s*0.22, y+s*0.3); c.lineTo(x+s*0.78, y+s*0.3);
+  c.moveTo(x+s*0.62, y+s*0.12); c.lineTo(x+s*0.8, y+s*0.3); c.lineTo(x+s*0.62, y+s*0.48);
+  c.moveTo(x+s*0.78, y+s*0.7); c.lineTo(x+s*0.22, y+s*0.7);
+  c.moveTo(x+s*0.38, y+s*0.52); c.lineTo(x+s*0.2, y+s*0.7); c.lineTo(x+s*0.38, y+s*0.88);
+  c.stroke();
+}
+function icoUp(c,x,y,s){
+  c.beginPath();
+  c.moveTo(x+s/2, y);
+  c.lineTo(x+s, y+s*0.55); c.lineTo(x+s*0.68, y+s*0.55);
+  c.lineTo(x+s*0.68, y+s); c.lineTo(x+s*0.32, y+s);
+  c.lineTo(x+s*0.32, y+s*0.55); c.lineTo(x, y+s*0.55);
+  c.closePath();
+}
+function icoStar(c,cx,cy,r){
+  c.beginPath();
+  for(let i=0;i<10;i++){
+    const ang = -Math.PI/2 + i*Math.PI/5;
+    const rad = i%2===0 ? r : r*0.45;
+    const px=cx+Math.cos(ang)*rad, py=cy+Math.sin(ang)*rad;
+    i===0 ? c.moveTo(px,py) : c.lineTo(px,py);
+  }
+  c.closePath();
+}
+function icoFork(c,x,y,s){
+  c.beginPath();
+  c.arc(x+s*0.2,y+s*0.15,s*0.13,0,7); c.moveTo(x+s*0.93,y+s*0.15); c.arc(x+s*0.8,y+s*0.15,s*0.13,0,7);
+  c.moveTo(x+s*0.63,y+s*0.85); c.arc(x+s*0.5,y+s*0.85,s*0.13,0,7);
+  c.moveTo(x+s*0.2,y+s*0.28); c.lineTo(x+s*0.2,y+s*0.42); c.quadraticCurveTo(x+s*0.2,y+s*0.55,x+s*0.5,y+s*0.55);
+  c.moveTo(x+s*0.8,y+s*0.28); c.lineTo(x+s*0.8,y+s*0.42); c.quadraticCurveTo(x+s*0.8,y+s*0.55,x+s*0.5,y+s*0.55);
+  c.moveTo(x+s*0.5,y+s*0.55); c.lineTo(x+s*0.5,y+s*0.72);
+  c.stroke();
+}
+function icoCheck(c, cx, cy, r){
+  c.fillStyle='#1d9bf0';
+  c.beginPath(); c.arc(cx,cy,r,0,7); c.fill();
+  c.strokeStyle='#fff'; c.lineWidth=r*0.32; c.lineCap='round'; c.lineJoin='round';
+  c.beginPath();
+  c.moveTo(cx-r*0.42, cy+r*0.02);
+  c.lineTo(cx-r*0.1, cy+r*0.36);
+  c.lineTo(cx+r*0.46, cy-r*0.32);
+  c.stroke();
+}
+function playButton(c, cx, cy, style){
+  if(style==='youtube'){
+    c.fillStyle='#ff0000';
+    rr(c, cx-62, cy-43, 124, 86, 26); c.fill();
+    c.fillStyle='#fff';
+    c.beginPath(); c.moveTo(cx-18,cy-24); c.lineTo(cx+26,cy); c.lineTo(cx-18,cy+24); c.closePath(); c.fill();
+  }else{
+    c.fillStyle='rgba(0,0,0,.45)';
+    c.beginPath(); c.arc(cx,cy,54,0,7); c.fill();
+    c.fillStyle='#fff';
+    c.beginPath(); c.moveTo(cx-15,cy-25); c.lineTo(cx+27,cy); c.lineTo(cx-15,cy+25); c.closePath(); c.fill();
+  }
+}
+function relTime(utc){
+  if(!utc) return '';
+  const s = Date.now()/1000 - utc;
+  if(s<3600) return Math.max(1,Math.round(s/60))+'m';
+  if(s<86400) return Math.round(s/3600)+'h';
+  if(s<86400*30) return Math.round(s/86400)+'d';
+  return new Date(utc*1000).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function platformBadge(c, p, x, y, T){
+  const meta = PLATFORM[p];
+  if(p==='x'){ c.fillStyle=T.ink; c.font='700 52px Instrument Sans, sans-serif'; c.textAlign='right'; c.fillText('𝕏', x, y+44); c.textAlign='left'; return; }
+  if(p==='threads'){ c.fillStyle=T.ink; c.font='700 50px Instrument Sans, sans-serif'; c.textAlign='right'; c.fillText('@', x, y+44); c.textAlign='left'; return; }
+  c.fillStyle=meta.color;
+  c.font='700 27px Instrument Sans, sans-serif';
+  c.textAlign='right'; c.fillText(meta.label, x, y+38); c.textAlign='left';
+}
+
+/* ===================== Generic post card (X, Bluesky, Mastodon, Threads) ===================== */
+async function drawPostCard(d){
+  const T = THEMES[state.cardTheme];
+  const meta = PLATFORM[d.platform] || PLATFORM.x;
+  const W=1100, P=56, AV=96;
+  const [avatar, media] = await Promise.all([loadProxied(d.avatar), loadProxied(d.image)]);
+
+  const c0 = document.createElement('canvas').getContext('2d');
+  c0.font='400 36px Instrument Sans, sans-serif';
+  const lines = wrapText(c0, d.text, W-P*2);
+  const lineH=52, textH = lines.length*lineH;
+  let m = media ? scaledMedia(media, W-P*2, 760) : null;
+  const hasMetrics = d.likes != null;
+
+  let H = P + AV + 30 + (textH? textH+8 : 0);
+  if(m) H += 24 + m.h;
+  if(d.date) H += 28 + 36;
+  if(hasMetrics) H += 26 + 1 + 26 + 44;
+  H += P*0.7;
+
+  const cv = document.createElement('canvas');
+  cv.width=W; cv.height=Math.round(H);
+  const c = cv.getContext('2d');
+  c.fillStyle=T.bg; c.fillRect(0,0,W,cv.height);
+
+  circleImg(c, avatar, P, P, AV, meta.color||'#1d9bf0', d.author_name);
+  c.fillStyle=T.ink;
+  c.font='700 32px Instrument Sans, sans-serif';
+  const nx = P+AV+24;
+  c.fillText(d.author_name, nx, P+40);
+  if(d.verified) icoCheck(c, nx + c.measureText(d.author_name).width + 26, P+30, 15);
+  c.fillStyle=T.sub;
+  c.font='400 27px Instrument Sans, sans-serif';
+  c.fillText(d.author_handle, nx, P+78);
+  platformBadge(c, d.platform, W-P, P, T);
+
+  let y = P + AV + 30;
+  c.fillStyle=T.ink;
+  c.font='400 36px Instrument Sans, sans-serif';
+  for(const ln of lines){ y+=lineH; c.fillText(ln, P, y-14); }
+  if(lines.length) y+=8;
+
+  if(m){
+    y += 24;
+    drawMedia(c, media, P, y, m.w, m.h, m.crop, 28);
+    if(d.is_video) playButton(c, P+m.w/2, y+m.h/2, 'generic');
+    y += m.h;
+  }
+
+  if(d.date){
+    y += 28+30;
+    c.fillStyle=T.sub;
+    c.font='400 27px Instrument Sans, sans-serif';
+    const dt = new Date(d.date);
+    c.fillText(!isNaN(dt) ? dt.toLocaleString(undefined,{hour:'numeric',minute:'2-digit'})+' · '+dt.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '', P, y);
+  }
+
+  if(hasMetrics){
+    y += 26;
+    c.fillStyle=T.line; c.fillRect(P,y,W-P*2,2);
+    y += 26;
+    c.lineWidth=3; c.lineJoin='round'; c.lineCap='round';
+    c.font='600 27px Instrument Sans, sans-serif';
+    let mx=P;
+    c.fillStyle=meta.heart;
+    icoHeart(c, mx, y, 34, true);
+    c.fillStyle=T.ink;
+    c.fillText(fmtN(d.likes), mx+48, y+30);
+    mx += 48 + c.measureText(fmtN(d.likes)).width + 64;
+    if(d.reposts != null){
+      c.strokeStyle='#00ba7c';
+      icoRepost(c, mx, y, 36);
+      c.fillStyle=T.ink;
+      c.fillText(fmtN(d.reposts), mx+50, y+30);
+      mx += 50 + c.measureText(fmtN(d.reposts)).width + 64;
+    }
+    c.strokeStyle=T.sub;
+    icoBubble(c, mx, y, 32);
+    c.fillStyle=T.ink;
+    c.fillText(fmtN(d.comments), mx+48, y+30);
+  }
+  return cv;
+}
+
+/* ===================== Reddit card ===================== */
+async function drawRedditCard(d){
+  const T = THEMES[state.cardTheme];
+  const W=1100, P=56, AV=72;
+  const media = await loadProxied(d.image);
+
+  const c0 = document.createElement('canvas').getContext('2d');
+  c0.font='700 40px Instrument Sans, sans-serif';
+  const titleLines = wrapText(c0, d.title, W-P*2);
+  c0.font='400 30px Instrument Sans, sans-serif';
+  let bodyLines = media ? [] : wrapText(c0, d.text, W-P*2).slice(0,6);
+  let m = media ? scaledMedia(media, W-P*2, 820) : null;
+
+  let H = P + AV + 26 + titleLines.length*54;
+  if(bodyLines.length) H += 14 + bodyLines.length*44;
+  if(m) H += 26 + m.h;
+  H += 30 + 52 + P*0.7;
+
+  const cv=document.createElement('canvas');
+  cv.width=W; cv.height=Math.round(H);
+  const c=cv.getContext('2d');
+  c.fillStyle=T.bg; c.fillRect(0,0,W,cv.height);
+
+  circleImg(c, null, P, P, AV, '#ff4500', 'r');
+  c.fillStyle='#fff';
+  c.font='700 30px Instrument Sans, sans-serif';
+  c.textAlign='center'; c.fillText('r/', P+AV/2, P+AV/2+11); c.textAlign='left';
+  c.fillStyle=T.ink;
+  c.font='700 29px Instrument Sans, sans-serif';
+  c.fillText(d.subreddit, P+AV+22, P+28);
+  c.fillStyle=T.sub;
+  c.font='400 25px Instrument Sans, sans-serif';
+  c.fillText(d.author_handle + (d.created_utc ? ' · ' + relTime(d.created_utc) : ''), P+AV+22, P+62);
+
+  let y = P + AV + 26;
+  c.fillStyle=T.ink;
+  c.font='700 40px Instrument Sans, sans-serif';
+  for(const ln of titleLines){ y+=54; c.fillText(ln, P, y-14); }
+  if(bodyLines.length){
+    y += 14;
+    c.fillStyle=T.sub;
+    c.font='400 30px Instrument Sans, sans-serif';
+    for(const ln of bodyLines){ y+=44; c.fillText(ln, P, y-12); }
+  }
+  if(m){
+    y += 26;
+    drawMedia(c, media, P, y, m.w, m.h, m.crop, 24);
+    if(d.is_video) playButton(c, P+m.w/2, y+m.h/2, 'generic');
+    y += m.h;
+  }
+
+  y += 30;
+  const pillH=52;
+  c.font='600 26px Instrument Sans, sans-serif';
+  const upW = c.measureText(fmtN(d.likes)).width;
+  c.fillStyle=T.chip;
+  rr(c,P,y,90+upW,pillH,pillH/2); c.fill();
+  c.fillStyle='#ff4500';
+  icoUp(c, P+22, y+13, 26); c.fill();
+  c.fillStyle=T.ink;
+  c.fillText(fmtN(d.likes), P+62, y+35);
+
+  const px2 = P+90+upW+18;
+  const cmW = c.measureText(fmtN(d.comments)).width;
+  c.fillStyle=T.chip;
+  rr(c,px2,y,96+cmW,pillH,pillH/2); c.fill();
+  c.strokeStyle=T.sub; c.lineWidth=3;
+  icoBubble(c, px2+22, y+11, 28);
+  c.fillStyle=T.ink;
+  c.fillText(fmtN(d.comments), px2+64, y+35);
+
+  c.fillStyle='#ff4500';
+  c.font='700 28px Instrument Sans, sans-serif';
+  c.textAlign='right'; c.fillText('reddit', W-P, y+36); c.textAlign='left';
+  return cv;
+}
+
+/* ===================== Instagram card ===================== */
+async function drawInstaCard(d){
+  const T = THEMES[state.cardTheme];
+  const W=1000, AV=78, HDR=130;
+  const media = await loadProxied(d.image);
+  if(!media){ note('Instagram returned no image for this post'); throw new Error('no media'); }
+
+  const mH = Math.min(W * media.naturalHeight / media.naturalWidth, 1150);
+  const crop = mH < W * media.naturalHeight / media.naturalWidth;
+
+  const c0=document.createElement('canvas').getContext('2d');
+  c0.font='400 28px Instrument Sans, sans-serif';
+  const cap = d.text ? wrapText(c0, d.text, W-72*2).slice(0,3) : [];
+
+  let H = HDR + mH + 96 + 52 + (cap.length? 10+cap.length*40 : 0) + 44;
+  const cv=document.createElement('canvas');
+  cv.width=W; cv.height=Math.round(H);
+  const c=cv.getContext('2d');
+  c.fillStyle=T.bg; c.fillRect(0,0,W,cv.height);
+
+  const ax=36, ay=(HDR-AV)/2;
+  const ring=c.createLinearGradient(ax,ay,ax+AV,ay+AV);
+  ring.addColorStop(0,'#f9ce34'); ring.addColorStop(.5,'#ee2a7b'); ring.addColorStop(1,'#6228d7');
+  c.fillStyle=ring;
+  c.beginPath(); c.arc(ax+AV/2,ay+AV/2,AV/2+5,0,7); c.fill();
+  c.fillStyle=T.bg;
+  c.beginPath(); c.arc(ax+AV/2,ay+AV/2,AV/2+1,0,7); c.fill();
+  circleImg(c, null, ax, ay, AV, '#c13584', d.author_handle);
+  c.fillStyle=T.ink;
+  c.font='700 30px Instrument Sans, sans-serif';
+  c.fillText(d.author_handle, ax+AV+22, HDR/2+11);
+  [0,1,2].forEach(i=>{ c.beginPath(); c.arc(W-44-i*18, HDR/2, 4, 0, 7); c.fillStyle=T.ink; c.fill(); });
+
+  if(crop){
+    const srcH = media.naturalWidth * mH / W;
+    c.drawImage(media, 0,(media.naturalHeight-srcH)/2, media.naturalWidth, srcH, 0, HDR, W, mH);
+  } else c.drawImage(media, 0, HDR, W, mH);
+
+  let y = HDR + mH + 30;
+  c.strokeStyle=T.ink; c.fillStyle=T.ink; c.lineWidth=4; c.lineJoin='round'; c.lineCap='round';
+  icoHeart(c, 36, y, 44, false);
+  icoBubble(c, 104, y+2, 42);
+  c.beginPath();
+  c.moveTo(172, y+24); c.lineTo(216, y+2); c.lineTo(196, y+44); c.lineTo(188, y+28); c.closePath();
+  c.stroke();
+
+  y += 96;
+  c.fillStyle=T.ink;
+  c.font='700 30px Instrument Sans, sans-serif';
+  c.fillText(fmtN(d.likes) + ' likes', 36, y);
+
+  if(cap.length){
+    y += 10;
+    for(let i=0;i<cap.length;i++){
+      y += 40;
+      if(i===0){
+        c.font='700 28px Instrument Sans, sans-serif';
+        c.fillText(d.author_handle, 36, y);
+        const w=c.measureText(d.author_handle+' ').width;
+        c.font='400 28px Instrument Sans, sans-serif';
+        c.fillText(cap[i], 36+w, y);
+      } else { c.font='400 28px Instrument Sans, sans-serif'; c.fillText(cap[i], 36, y); }
+    }
+  }
+  if(d.comments){
+    c.fillStyle=T.sub;
+    c.font='400 26px Instrument Sans, sans-serif';
+    c.fillText('View all '+fmtN(d.comments)+' comments', 36, cv.height-26);
+  }
+  return cv;
+}
+
+/* ===================== Video card (YouTube, TikTok) ===================== */
+async function drawVideoCard(d){
+  const T = THEMES[state.cardTheme];
+  const W=1100, P=48;
+  const media = await loadProxied(d.image, d.image_fallback);
+
+  const c0=document.createElement('canvas').getContext('2d');
+  c0.font='700 38px Instrument Sans, sans-serif';
+  const titleLines = wrapText(c0, d.title, W-P*2).slice(0,3);
+
+  let m = media ? scaledMedia(media, W-P*2, d.platform==='tiktok' ? 980 : 640) : null;
+  let H = P + (m? m.h : 0) + 30 + titleLines.length*52 + 18 + 44 + P*0.8;
+
+  const cv=document.createElement('canvas');
+  cv.width=W; cv.height=Math.round(H);
+  const c=cv.getContext('2d');
+  c.fillStyle=T.bg; c.fillRect(0,0,W,cv.height);
+
+  let y=P;
+  if(m){
+    drawMedia(c, media, P, y, m.w, m.h, m.crop, 26);
+    playButton(c, P+m.w/2, y+m.h/2, d.platform==='youtube'?'youtube':'generic');
+    y += m.h;
+  }
+  y += 30;
+  c.fillStyle=T.ink;
+  c.font='700 38px Instrument Sans, sans-serif';
+  for(const ln of titleLines){ y+=52; c.fillText(ln, P, y-14); }
+  y += 18;
+  c.fillStyle=T.sub;
+  c.font='500 28px Instrument Sans, sans-serif';
+  c.fillText(d.author_handle || d.author_name, P, y+28);
+
+  if(d.platform==='youtube'){
+    c.fillStyle='#ff0000';
+    rr(c, W-P-118, y, 64, 44, 12); c.fill();
+    c.fillStyle='#fff';
+    c.beginPath(); c.moveTo(W-P-95,y+12); c.lineTo(W-P-72,y+22); c.lineTo(W-P-95,y+32); c.closePath(); c.fill();
+    c.fillStyle=T.ink;
+    c.font='700 26px Instrument Sans, sans-serif';
+    c.textAlign='right'; c.fillText('YouTube', W-P-128, y+31); c.textAlign='left';
+  }else{
+    c.fillStyle=T.ink;
+    c.font='700 28px Instrument Sans, sans-serif';
+    c.textAlign='right'; c.fillText('TikTok', W-P, y+30); c.textAlign='left';
+  }
+  return cv;
+}
+
+/* ===================== GitHub repo card ===================== */
+async function drawRepoCard(d){
+  const T = THEMES[state.cardTheme];
+  const W=1100, P=56, AV=96;
+  const avatar = await loadProxied(d.avatar);
+
+  const c0=document.createElement('canvas').getContext('2d');
+  c0.font='400 32px Instrument Sans, sans-serif';
+  const descLines = wrapText(c0, d.description, W-P*2).slice(0,4);
+
+  let H = P + AV + 34 + (descLines.length? descLines.length*46+8 : 0) + 30 + 50 + P*0.8;
+
+  const cv=document.createElement('canvas');
+  cv.width=W; cv.height=Math.round(H);
+  const c=cv.getContext('2d');
+  c.fillStyle=T.bg; c.fillRect(0,0,W,cv.height);
+
+  // avatar (rounded square)
+  c.save();
+  rr(c,P,P,AV,AV,22); c.clip();
+  if(avatar) c.drawImage(avatar,P,P,AV,AV);
+  else{ c.fillStyle='#24292f'; c.fillRect(P,P,AV,AV); }
+  c.restore();
+
+  const [owner, repo] = (d.full_name||'/').split('/');
+  c.font='500 30px JetBrains Mono, monospace';
+  c.fillStyle=T.sub;
+  c.fillText(owner+' /', P+AV+26, P+38);
+  c.font='700 38px JetBrains Mono, monospace';
+  c.fillStyle=T.ink;
+  c.fillText(repo, P+AV+26, P+86);
+
+  c.fillStyle=T.ink;
+  c.font='700 30px Instrument Sans, sans-serif';
+  c.textAlign='right'; c.fillText('GitHub', W-P, P+40); c.textAlign='left';
+
+  let y = P + AV + 34;
+  if(descLines.length){
+    c.fillStyle=T.sub;
+    c.font='400 32px Instrument Sans, sans-serif';
+    for(const ln of descLines){ y+=46; c.fillText(ln, P, y-12); }
+    y+=8;
+  }
+
+  y += 30;
+  c.font='600 28px Instrument Sans, sans-serif';
+  let mx=P;
+  if(d.language){
+    c.fillStyle = LANG_COLORS[d.language] || '#8b949e';
+    c.beginPath(); c.arc(mx+13, y+16, 13, 0, 7); c.fill();
+    c.fillStyle=T.ink;
+    c.fillText(d.language, mx+38, y+26);
+    mx += 38 + c.measureText(d.language).width + 56;
+  }
+  c.fillStyle='#e3b341';
+  icoStar(c, mx+16, y+15, 18); c.fill();
+  c.fillStyle=T.ink;
+  c.fillText(fmtN(d.stars), mx+44, y+26);
+  mx += 44 + c.measureText(fmtN(d.stars)).width + 56;
+  c.strokeStyle=T.sub; c.lineWidth=3.5; c.lineCap='round';
+  icoFork(c, mx, y-2, 36);
+  c.fillStyle=T.ink;
+  c.fillText(fmtN(d.forks), mx+48, y+26);
+  return cv;
+}
+
+/* ===================== Sample screenshot ===================== */
+$('btnSample').onclick = ()=>{
+  const c = document.createElement('canvas'); c.width=1280; c.height=800;
+  const x = c.getContext('2d');
+  x.fillStyle='#fbfaf8'; x.fillRect(0,0,1280,800);
+  x.fillStyle='#171512'; x.fillRect(0,0,232,800);
+  x.fillStyle='#ff4d2e'; x.beginPath(); x.arc(36,42,11,0,7); x.fill();
+  x.fillStyle='#fff'; x.font='600 17px Instrument Sans, sans-serif'; x.fillText('Atelier',58,48);
+  ['Overview','Projects','Library','Reviews','Billing','Settings'].forEach((t,i)=>{
+    if(i===1){ x.fillStyle='rgba(255,255,255,.1)'; rr(x,14,86+i*46,204,38,9); x.fill(); }
+    x.fillStyle = i===1 ? '#fff' : 'rgba(255,255,255,.55)';
+    x.font='500 14px Instrument Sans, sans-serif';
+    x.fillText(t,34,110+i*46);
+  });
+  x.fillStyle='#171512'; x.font='600 26px Instrument Sans, sans-serif'; x.fillText('Projects',268,66);
+  x.fillStyle='#9b948a'; x.font='400 14px Instrument Sans, sans-serif'; x.fillText('12 active · updated 4 minutes ago',268,92);
+  x.fillStyle='#ff4d2e'; rr(x,1106,42,138,40,10); x.fill();
+  x.fillStyle='#fff'; x.font='600 14px Instrument Sans, sans-serif'; x.fillText('New project',1126,67);
+  [['Active jobs','24',1],['Render hours','1,842',0],['Storage','318 GB',0]].forEach((s,i)=>{
+    const sx=268+i*332;
+    x.fillStyle='#fff'; rr(x,sx,124,308,116,14); x.fill();
+    x.strokeStyle='#eceae5'; x.lineWidth=1; rr(x,sx,124,308,116,14); x.stroke();
+    x.fillStyle='#9b948a'; x.font='500 12px Instrument Sans, sans-serif'; x.fillText(s[0].toUpperCase(),sx+22,156);
+    x.fillStyle='#171512'; x.font='600 30px Instrument Sans, sans-serif'; x.fillText(s[1],sx+22,202);
+    if(s[2]){ x.fillStyle='#11a36c'; x.font='600 13px Instrument Sans, sans-serif'; x.fillText('▲ 12%',sx+232,202); }
+  });
+  x.fillStyle='#fff'; rr(x,268,264,996,300,14); x.fill();
+  x.strokeStyle='#eceae5'; rr(x,268,264,996,300,14); x.stroke();
+  x.fillStyle='#171512'; x.font='600 16px Instrument Sans, sans-serif'; x.fillText('Weekly throughput',294,300);
+  [.45,.62,.5,.78,.66,.9,.72,.84,.58,.95,.7,.88].forEach((h,i)=>{
+    const bw=54, bx=300+i*80, bh=200*h;
+    x.fillStyle = i===9 ? '#ff4d2e' : '#e8e2d8';
+    rr(x,bx,536-bh,bw,bh,7); x.fill();
+  });
+  x.fillStyle='#fff'; rr(x,268,588,996,180,14); x.fill();
+  x.strokeStyle='#eceae5'; rr(x,268,588,996,180,14); x.stroke();
+  ['Brand refresh — Meridian','Mobile onboarding flow','Q3 launch microsite'].forEach((t,i)=>{
+    const ry=620+i*48;
+    x.fillStyle='#f1ece4'; x.beginPath(); x.arc(308,ry,14,0,7); x.fill();
+    x.fillStyle='#171512'; x.font='500 14.5px Instrument Sans, sans-serif'; x.fillText(t,338,ry+5);
+    x.fillStyle = i===0 ? '#11a36c' : '#9b948a';
+    x.font='500 13px Instrument Sans, sans-serif';
+    x.fillText(i===0?'On track':'In review',1140,ry+5);
+  });
+  const img=new Image();
+  img.onload=()=>{ state.post=null; setImage(img); };
+  img.src=c.toDataURL();
+};
+
+/* ===================== Main render pipeline ===================== */
+let grainCache=null, grainKey='';
+
+function fillBackground(W,H,t){
+  const g = state.bgMode==='preset' ? GRADIENTS[state.bg] : null;
+
+  if(state.bgMode==='image' && state.bgImg){
+    const b=state.bgImg;
+    const s=Math.max(W/b.naturalWidth, H/b.naturalHeight) * (state.anim && state.animStyle==='breathe' ? 1+0.04*(1+Math.sin(t*0.9))/2 : 1);
+    const dw=b.naturalWidth*s, dh=b.naturalHeight*s;
+    let dx=(W-dw)/2, dy=(H-dh)/2;
+    if(state.anim && state.animStyle==='drift'){
+      dx += Math.sin(t*0.5)*Math.min(40,(dw-W)/2||20);
+      dy += Math.cos(t*0.4)*Math.min(30,(dh-H)/2||15);
+    }
+    if(state.anim && state.animStyle==='hue') ctx.filter=`hue-rotate(${(t*40)%360}deg)`;
+    ctx.drawImage(b,dx,dy,dw,dh);
+    ctx.filter='none';
+    return true;
+  }
+
+  let type, angle, stops;
+  if(state.bgMode==='custom'){
+    type = state.custom.type;
+    angle = state.custom.a;
+    stops = [[0,state.custom.c1],[1,state.custom.c2]];
+  }else{
+    if(!g || g.type==='none') return false;
+    if(g.type==='sol'){ ctx.fillStyle=g.c; ctx.fillRect(0,0,W,H); return true; }
+    type=g.type; angle=g.a||135; stops=g.stops;
+  }
+
+  if(state.anim && state.animStyle==='drift') angle = angle + t*22;
+  let scaleR = 0.75;
+  if(state.anim && state.animStyle==='breathe') scaleR = 0.75 + 0.18*(1+Math.sin(t*1.1))/2;
+
+  let grd;
+  if(type==='rad'){
+    const ox = state.anim&&state.animStyle==='drift' ? Math.sin(t*0.6)*W*0.12 : 0;
+    const oy = state.anim&&state.animStyle==='drift' ? Math.cos(t*0.5)*H*0.12 : 0;
+    grd = ctx.createRadialGradient(W*0.35+ox,H*0.3+oy,0, W*0.5,H*0.5, Math.max(W,H)*scaleR);
+  }else{
+    const ang=(angle-90)*Math.PI/180;
+    const len=(Math.abs(W*Math.cos(ang))+Math.abs(H*Math.sin(ang))) * (state.anim&&state.animStyle==='breathe' ? (0.8+0.4*(1+Math.sin(t*1.1))/2) : 1);
+    const cx=W/2, cy=H/2;
+    grd=ctx.createLinearGradient(cx-Math.cos(ang)*len/2, cy-Math.sin(ang)*len/2, cx+Math.cos(ang)*len/2, cy+Math.sin(ang)*len/2);
+  }
+  stops.forEach(s=>grd.addColorStop(s[0],s[1]));
+  if(state.anim && state.animStyle==='hue') ctx.filter=`hue-rotate(${(t*40)%360}deg)`;
+  ctx.fillStyle=grd;
+  ctx.fillRect(0,0,W,H);
+  ctx.filter='none';
+  return true;
+}
+
+function render(t=0){
+  if(!state.img) return;
+  const img = state.img;
+  const sc = state.geomScale/100;
+  const u = Math.max(1, Math.min(img.naturalWidth, img.naturalHeight)/900);
+  const pad = state.pad * u;
+  const rad = state.rad * u;
+  const cw = img.naturalWidth * sc;
+  const barH = state.frame==='none' ? 0 : Math.round(Math.max(30, cw*0.034));
+  const ch = img.naturalHeight * sc + barH;
+
+  // rotation bounding box
+  const rot = state.rot*Math.PI/180;
+  const bw = Math.abs(cw*Math.cos(rot))+Math.abs(ch*Math.sin(rot));
+  const bh = Math.abs(cw*Math.sin(rot))+Math.abs(ch*Math.cos(rot));
+
+  let W = bw + pad*2, H = bh + pad*2;
+  if(state.aspect!=='auto'){
+    const r = state.aspect;
+    if(W/H < r) W = H*r; else H = W/r;
+  }
+  W=Math.round(W); H=Math.round(H);
+  if(canvas.width!==W) canvas.width=W;
+  if(canvas.height!==H) canvas.height=H;
+  ctx.clearRect(0,0,W,H);
+
+  const hasBg = fillBackground(W,H,t);
+  if(hasBg && state.grain) drawGrain(W,H);
+  canvas.classList.toggle('transparent-bg', !hasBg);
+
+  // content transform
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.rotate(rot);
+  ctx.translate(-cw/2, -ch/2);
+
+  if(state.shadow>0){
+    ctx.save();
+    const s=state.shadow/100;
+    ctx.shadowColor=`rgba(10,10,20,${0.18+s*0.42})`;
+    ctx.shadowBlur=s*90*u;
+    ctx.shadowOffsetY=s*40*u;
+    rr(ctx,0,0,cw,ch,rad);
+    ctx.fillStyle='#000';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.save();
+  rr(ctx,0,0,cw,ch,rad);
+  ctx.clip();
+  drawFrameBar(cw, barH);
+  ctx.drawImage(img, 0, barH, cw, img.naturalHeight*sc);
+  if(state.glare){
+    const gl=ctx.createLinearGradient(0,0,cw*0.9,ch*0.9);
+    gl.addColorStop(0,'rgba(255,255,255,.22)');
+    gl.addColorStop(.28,'rgba(255,255,255,.06)');
+    gl.addColorStop(.45,'rgba(255,255,255,0)');
+    ctx.fillStyle=gl;
+    ctx.fillRect(0,0,cw,ch);
+  }
+  ctx.restore();
+
+  // border + hairline
+  if(state.border>0){
+    rr(ctx, -state.border*u/2, -state.border*u/2, cw+state.border*u, ch+state.border*u, rad+state.border*u/2);
+    ctx.strokeStyle=state.borderColor;
+    ctx.lineWidth=state.border*u;
+    ctx.stroke();
+  }else{
+    rr(ctx,0.5,0.5,cw-1,ch-1,rad);
+    ctx.strokeStyle='rgba(255,255,255,.18)';
+    ctx.lineWidth=Math.max(1,u);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  if(state.vignette){
+    const v=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35, W/2,H/2, Math.max(W,H)*0.72);
+    v.addColorStop(0,'rgba(0,0,0,0)');
+    v.addColorStop(1,'rgba(0,0,0,.34)');
+    ctx.fillStyle=v;
+    ctx.fillRect(0,0,W,H);
+  }
+  if(state.watermark.trim()){
+    ctx.save();
+    ctx.font=`500 ${Math.max(20, W*0.018)}px Instrument Sans, sans-serif`;
+    ctx.textAlign='right';
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    ctx.shadowColor='rgba(0,0,0,.35)';
+    ctx.shadowBlur=8;
+    ctx.fillText(state.watermark.trim(), W-pad*0.4-14, H-pad*0.4-14);
+    ctx.restore();
+  }
+
+  $('scaleNote').textContent = `${Math.round(W*state.scale)} × ${Math.round(H*state.scale)} px`;
+  $('stageHint').textContent = `${W} × ${H} · adjust on the right, export when it shines`;
+}
+
+function drawFrameBar(cw, barH){
+  if(!barH) return;
+  const mac = state.frame.startsWith('mac');
+  const dark = state.frame.endsWith('dark');
+  if(dark){ ctx.fillStyle = mac ? '#2b2d33' : '#202020'; ctx.fillRect(0,0,cw,barH); }
+  else{
+    if(mac){
+      const grd=ctx.createLinearGradient(0,0,0,barH);
+      grd.addColorStop(0,'#f6f6f6'); grd.addColorStop(1,'#e6e6e6');
+      ctx.fillStyle=grd;
+    }else ctx.fillStyle='#f3f3f3';
+    ctx.fillRect(0,0,cw,barH);
+  }
+  ctx.fillStyle = dark ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.08)';
+  ctx.fillRect(0,barH-1,cw,1);
+
+  if(mac){
+    const lr=barH*0.165, lcy=barH/2, lx=barH*0.55;
+    ['#ff5f57','#febc2e','#28c840'].forEach((col,i)=>{
+      ctx.beginPath(); ctx.arc(lx+i*lr*2.8, lcy, lr, 0, 7);
+      ctx.fillStyle=col; ctx.fill();
+    });
+  }else{
+    // Windows caption buttons, right-aligned
+    const s=barH*0.30, gap=barH*1.5, cy=barH/2;
+    const colIcon = dark ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.7)';
+    ctx.strokeStyle=colIcon; ctx.lineWidth=Math.max(1.5, barH*0.05); ctx.lineCap='round';
+    let x = cw - barH*0.9;
+    // close ✕
+    ctx.beginPath();
+    ctx.moveTo(x-s/2,cy-s/2); ctx.lineTo(x+s/2,cy+s/2);
+    ctx.moveTo(x+s/2,cy-s/2); ctx.lineTo(x-s/2,cy+s/2);
+    ctx.stroke();
+    // maximize ▢
+    x -= gap;
+    ctx.strokeRect(x-s/2, cy-s/2, s, s);
+    // minimize —
+    x -= gap;
+    ctx.beginPath();
+    ctx.moveTo(x-s/2, cy); ctx.lineTo(x+s/2, cy);
+    ctx.stroke();
+  }
+}
+
+function drawGrain(W,H){
+  const key=W+'x'+H;
+  if(grainKey!==key){
+    const gc=document.createElement('canvas');
+    const gs=Math.min(W,512);
+    gc.width=gs; gc.height=Math.max(1,Math.round(gs*H/W));
+    const gx=gc.getContext('2d');
+    const d=gx.createImageData(gc.width,gc.height);
+    for(let i=0;i<d.data.length;i+=4){
+      const v=Math.random()*255|0;
+      d.data[i]=d.data[i+1]=d.data[i+2]=v;
+      d.data[i+3]=22;
+    }
+    gx.putImageData(d,0,0);
+    grainCache=gc; grainKey=key;
+  }
+  ctx.save();
+  ctx.globalCompositeOperation='overlay';
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(grainCache,0,0,W,H);
+  ctx.restore();
+}
+
+/* ===================== Animation loop ===================== */
+let raf=null, t0=null;
+function startAnim(){
+  if(raf) return;
+  t0=null;
+  const loop = ts=>{
+    if(!state.anim){ raf=null; return; }
+    if(t0===null) t0=ts;
+    render((ts-t0)/1000);
+    raf=requestAnimationFrame(loop);
+  };
+  raf=requestAnimationFrame(loop);
+}
+function stopAnim(){
+  state.anim=false;
+  if(raf){ cancelAnimationFrame(raf); raf=null; }
+  render();
+}
+
+/* ===================== Export ===================== */
+function renderScaled(){
+  const out=document.createElement('canvas');
+  out.width=canvas.width*state.scale;
+  out.height=canvas.height*state.scale;
+  const ox=out.getContext('2d');
+  ox.imageSmoothingQuality='high';
+  ox.drawImage(canvas,0,0,out.width,out.height);
+  return out;
+}
+function download(blob, name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+function exportPng(){
+  if(!state.img) return note('Add a screenshot or fetch a post first');
+  renderScaled().toBlob(b=>{ download(b,'glaze-screenshot.png'); note('PNG exported'); },'image/png');
+}
+$('btnExport').onclick = exportPng;
+$('btnExportPng').onclick = exportPng;
+
+$('btnExportWebm').onclick = ()=>{
+  if(!state.img) return note('Add a screenshot or fetch a post first');
+  if(!state.anim) return note('Turn on Animate background first');
+  if(typeof MediaRecorder==='undefined') return note('This browser cannot record video');
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  const streamCanvas = canvas;
+  const stream = streamCanvas.captureStream(30);
+  const rec = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:8_000_000});
+  const chunks=[];
+  rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+  rec.onstop = ()=>{ download(new Blob(chunks,{type:'video/webm'}),'glaze-animated.webm'); note('WebM exported'); };
+  rec.start();
+  note('Recording 4 seconds…');
+  setTimeout(()=>rec.stop(), 4000);
+};
+
+$('btnCopy').onclick = async ()=>{
+  if(!state.img) return note('Add a screenshot or fetch a post first');
+  try{
+    const blob = await new Promise(r=>renderScaled().toBlob(r,'image/png'));
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    note('Copied to clipboard');
+  }catch(e){ note('Clipboard blocked here — use Export instead'); }
+};
+
+let toastTimer;
+function note(msg){
+  toast.textContent=msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toast.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
