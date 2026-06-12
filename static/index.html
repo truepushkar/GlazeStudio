@@ -4,6 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glaze — Screenshot Studio</title>
+<meta name="description" content="Glaze is a CleanShot X–style screenshot beautifier. Drop a screenshot or import a post from X, Reddit, Bluesky, YouTube and more, then add backgrounds, frames, shadows and finishes — and export PNG or animated WebM. Runs entirely in your browser.">
+<meta name="keywords" content="screenshot beautifier, screenshot editor, social post card, glaze, cleanshot, mockup, background generator, webm export">
+<meta name="author" content="Glaze Studio">
+<meta name="theme-color" content="#ff4d2e">
+<meta name="color-scheme" content="dark light">
+<link rel="canonical" href="https://glaze.studio/">
+
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glaze Studio">
+<meta property="og:title" content="Glaze — Screenshot Studio">
+<meta property="og:description" content="Beautify screenshots and turn public posts into clean share-cards — backgrounds, frames, shadows, finishes, and PNG/WebM export, all in the browser.">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glaze — Screenshot Studio">
+<meta name="twitter:description" content="Beautify screenshots and turn public posts into clean share-cards — all in the browser.">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -288,7 +307,7 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4
     <div class="panel">
       <div class="panel-label">Import a post</div>
       <div class="import-row">
-        <input type="url" id="postUrl" placeholder="Paste a post URL…" spellcheck="false">
+        <input type="url" id="postUrl" placeholder="Paste a post or website URL…" spellcheck="false">
         <button class="btn-fetch" id="btnFetch">Fetch</button>
       </div>
       <div class="import-platforms">
@@ -486,7 +505,10 @@ GRADIENTS.forEach((g,i)=>{
 
 async function loadWallpapers(){
   try{
-    const res = await fetch('/api/wallpapers');
+    // Relative URL resolves to the Flask /wallpapers.json route when served by
+    // app.py, or to the bundled static/wallpapers.json file when the site is
+    // hosted standalone (no backend). Both list page-relative image URLs.
+    const res = await fetch('wallpapers.json');
     const wallpapers = await res.json();
     if(wallpapers.length > 0){
       wallpaperWrap.style.display = 'grid';
@@ -650,24 +672,40 @@ const fetchBtn = $('btnFetch'), urlInput = $('postUrl');
 fetchBtn.onclick = importUrl;
 urlInput.addEventListener('keydown', e=>{ if(e.key==='Enter') importUrl(); });
 
+// thrown when the Glaze backend isn't reachable (standalone / static hosting)
+const NO_BACKEND = Symbol('no-backend');
+
 async function importUrl(){
   const url = urlInput.value.trim();
-  if(!url) return note('Paste a post URL first');
+  if(!url) return note('Paste a post or website URL first');
   fetchBtn.classList.add('loading');
   try{
-    const res = await fetch('/api/fetch?url='+encodeURIComponent(url));
-    const data = await res.json();
+    let res;
+    try{ res = await fetch('/api/fetch?url='+encodeURIComponent(url)); }
+    catch{ throw NO_BACKEND; }              // no server listening
+    if(res.status===404 || res.status===405) throw NO_BACKEND;  // static host, no /api
+    let data;
+    try{ data = await res.json(); }
+    catch{ throw NO_BACKEND; }              // got HTML, not our JSON API
     if(!res.ok || data.error) throw new Error(data.error || 'Fetch failed');
     state.post = data;
     await buildCard(data);
-    note('Post imported — style away');
+    note(data.kind==='screenshot' ? 'Website captured — style away' : 'Post imported — style away');
   }catch(err){
-    if(location.protocol==='file:') note('URL import needs the Flask server — run python app.py');
+    if(err===NO_BACKEND) note('Post import needs the Glaze server — run "python app.py". Upload, paste and styling all work without it.');
     else note(err.message || 'Could not fetch that post');
   }finally{ fetchBtn.classList.remove('loading'); }
 }
 
 async function buildCard(d){
+  // A plain website screenshot isn't a card — drop it straight onto the
+  // canvas like an uploaded image (the screenshot service renders the page).
+  if(d.kind==='screenshot'){
+    const shot = await loadProxied(d.image, d.image_fallback);
+    if(!shot) throw new Error('Could not capture that website — it may block screenshots or be slow to render. Try again.');
+    setImage(shot);
+    return;
+  }
   const card =
     d.kind==='reddit'    ? await drawRedditCard(d) :
     d.kind==='instagram' ? await drawInstaCard(d)  :

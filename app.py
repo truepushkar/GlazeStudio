@@ -13,12 +13,15 @@ import math
 import os
 import re
 import socket
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import requests
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 app = Flask(__name__, static_folder="static")
+
+WALLPAPER_DIR = os.path.join(app.static_folder, "wallpaper")
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 BROWSER_UA = {
     "User-Agent": (
@@ -40,6 +43,27 @@ class PostError(Exception):
 @app.route("/")
 def home():
     return send_from_directory("static", "index.html")
+
+
+def _natural_key(name: str):
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
+
+
+@app.route("/wallpapers.json")
+def list_wallpapers():
+    try:
+        files = sorted(
+            (f for f in os.listdir(WALLPAPER_DIR) if f.lower().endswith(IMAGE_EXTS)),
+            key=_natural_key,
+        )
+    except OSError:
+        files = []
+    return jsonify([{"id": os.path.splitext(f)[0], "url": f"wallpaper/{f}"} for f in files])
+
+
+@app.route("/wallpaper/<path:filename>")
+def serve_wallpaper(filename):
+    return send_from_directory(WALLPAPER_DIR, filename)
 
 
 @app.route("/api/fetch")
@@ -71,7 +95,8 @@ def fetch_post():
         # Mastodon lives on thousands of instances — detect by URL shape
         if re.search(r"/@[\w.]+/\d+", url):
             return jsonify(fetch_mastodon(url))
-        return jsonify({"error": "Unsupported site. Try X, Reddit, Instagram, Bluesky, YouTube, TikTok, GitHub, Mastodon, or Threads."}), 400
+        # Anything else: capture a screenshot of the page itself.
+        return jsonify(fetch_website(url))
     except PostError as e:
         return jsonify({"error": str(e)}), 422
     except requests.RequestException:
@@ -330,6 +355,30 @@ def fetch_github(url: str) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Any other website — render a screenshot via free, no-key services
+# --------------------------------------------------------------------------
+SCREENSHOT_W = 1280
+
+
+def fetch_website(url: str) -> dict:
+    """Fall-back for non-social URLs: return screenshot image URLs.
+
+    The rendering is done by public no-key services; the resulting PNG is then
+    pulled through /api/img (same SSRF guard + un-tainting as every other
+    imported image). thum.io renders synchronously so it's tried first;
+    WordPress mShots is the fallback if thum.io errors or times out.
+    """
+    enc = quote(url, safe="")
+    host = (urlparse(url).hostname or url).removeprefix("www.")
+    return {
+        "platform": "website", "kind": "screenshot",
+        "title": host, "url": url,
+        "image": f"https://image.thum.io/get/width/{SCREENSHOT_W}/noanimate/{url}",
+        "image_fallback": f"https://s.wordpress.com/mshots/v1/{enc}?w={SCREENSHOT_W}",
+    }
+
+
+# --------------------------------------------------------------------------
 # Instagram & Threads — best-effort OpenGraph scrape (both block heavily)
 # --------------------------------------------------------------------------
 def _og_scrape(url: str):
@@ -421,7 +470,12 @@ def proxy_image():
                 return "Forbidden", 403
     except socket.gaierror:
         return "Unresolvable host", 400
-    r = requests.get(u, headers=BROWSER_UA, timeout=TIMEOUT)
+    # Generous timeout: screenshot services (thum.io / mShots) render the page
+    # on demand and can take a while; a slow render should fall back, not 500.
+    try:
+        r = requests.get(u, headers=BROWSER_UA, timeout=30)
+    except requests.RequestException:
+        return "Upstream error", 502
     if r.status_code != 200:
         return "Upstream error", 502
     if len(r.content) > 25 * 1024 * 1024:
